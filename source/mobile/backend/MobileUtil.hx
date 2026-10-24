@@ -26,7 +26,7 @@ class MobileUtil
 {
 	#if sys
 	public static inline function getAssetDirectory():String
-		return #if android haxe.io.Path.addTrailingSlash("/sdcard/Android/data/com.yoshman29.codenameengine/files") #elseif ios lime.system.System.documentsDirectory #else Sys.getCwd() #end;
+		return #if android haxe.io.Path.addTrailingSlash("/sdcard/Android/data/com.yoshman29.codenameenginee/files") #elseif ios lime.system.System.documentsDirectory #else Sys.getCwd() #end;
 
 	#if android
 	public static inline function getCustomStoragePath():String
@@ -92,11 +92,11 @@ class MobileUtil
 				daPath = "/sdcard/Android/obb/com.yoshman29.codenameengine";
 			*/
 			case 'EXTERNAL_MEDIA':
-				daPath = "/sdcard/Android/media/com.yoshman29.codenameengine";
+				daPath = "/sdcard/Android/media/com.yoshman29.codenameenginee";
 			case 'EXTERNAL_DATA':
-				daPath = "/sdcard/Android/data/com.yoshman29.codenameengine/files";
+				daPath = "/sdcard/Android/data/com.yoshman29.codenameenginee/files";
 			default: //technically not needed but here for safety -ArkoseLabs
-				if (daPath == null || daPath == '') daPath = "/sdcard/Android/data/com.yoshman29.codenameengine/files";
+				if (daPath == null || daPath == '') daPath = "/sdcard/Android/data/com.yoshman29.codenameenginee/files";
 		}
 		daPath = Path.addTrailingSlash(daPath);
 		currentDirectory = daPath;
@@ -225,11 +225,17 @@ class MobileUtil
 					cleanPath = cleanPath.substring(colonIndex + 1);
 				}
 
-				if (!StringTools.startsWith(cleanPath, "assets/")) return false;
-				if (folders == null) return true;
+				var defaultRoots:Array<String> = ["assets/", "mods/"];
 
-				for (f in folders) {
-					if (StringTools.startsWith(cleanPath, f)) return true;
+				if (folders != null) {
+					for (f in folders) {
+						if (StringTools.startsWith(cleanPath, f)) return true;
+					}
+					return false;
+				}
+
+				for (root in defaultRoots) {
+					if (StringTools.startsWith(cleanPath, root)) return true;
 				}
 				return false;
 			});
@@ -253,10 +259,32 @@ class MobileUtil
 
 				var directory = Path.directory(fullPath);
 				if (!FileSystem.exists(directory)) FileSystem.createDirectory(directory);
+				var shouldCopy = !FileSystem.exists(fullPath);
 
-				if (!FileSystem.exists(fullPath)) {
+				if (!shouldCopy) {
+					try {
+						var assetBytes = Assets.getBytes(assetKey);
+						var localBytes = File.getBytes(fullPath);
+						
+						if (localBytes != null && assetBytes != null) {
+							if (localBytes.length != assetBytes.length) {
+								shouldCopy = true;
+							} else {
+								for (j in 0...localBytes.length) {
+									if (localBytes.get(j) != assetBytes[j]) {
+										shouldCopy = true;
+										break;
+									}
+								}
+							}
+						}
+					} catch (e:Dynamic) {
+						shouldCopy = true;
+					}
+				}
+
+				if (shouldCopy) {
 					var bytes:Bytes = null;
-
 					try {
 						bytes = Assets.getBytes(assetKey);
 					} catch (e:Dynamic) {
